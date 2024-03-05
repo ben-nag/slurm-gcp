@@ -700,6 +700,28 @@ def with_static(**kwargs):
 def cached_property(f):
     return property(lru_cache()(f))
 
+def retry_gethost(max_retries: int, init_wait_time: float):
+    """Retries functions that error out due to socket.gaierror()
+    Retry time is increased by a factor of two for every iteration.
+    
+    Args:
+        max_retries (int): Maximum number of retries
+        init_wait_time (float): Initial wait time in secs
+    """
+    def decorator(f):
+        retry = 0
+        secs = init_wait_time
+        if retry < max_retries:
+            try:
+                return f()
+            except socket.gaierror as e:
+                log.warn(f"Temporary failure in name resolution, retrying in {secs}")
+                sleep(secs)
+                retry += 1
+                secs *= 2
+        else:
+            raise socket.gaierror()
+    return decorator
 
 def separate(pred, coll):
     """filter into 2 lists based on pred returning True or False
@@ -1181,6 +1203,7 @@ class Lookup:
         return self.cfg.slurm_control_host
 
     @cached_property
+    @retry_gethost(max_retries=5, init_wait_time=1)
     def control_host_addr(self):
         return socket.gethostbyname(self.cfg.slurm_control_host)
 
