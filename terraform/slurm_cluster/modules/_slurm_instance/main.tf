@@ -104,4 +104,8 @@ resource "google_compute_instance_from_template" "slurm_instance" {
       VmDnsSetting        = "GlobalOnly"
     },
   )
+
+  lifecycle {
+    replace_triggered_by = [var.replace_trigger]
+  }
 }
